@@ -17,7 +17,17 @@ import re
 import subprocess
 import urllib.parse
 import urllib.request
+
+
+
+
+
+
+
+
+_NUM_WORDS = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty")
 from pathlib import Path
+
 
 import config as C
 
@@ -26,8 +36,10 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s")
 
 # ---------------- heuristic fallback (no key / brain outage) ----------------
-ENTRY_RE  = re.compile(r'(?im)^\s*(?:#{1,3}\s*)?number\s+(\d+)\s*[:,.\-–—]?\s*(.+?)\s*$')
-SENT_RE   = re.compile(r'(?<=[.!?])["”\']?\s+(?=[A-Z0-9"“])')
+
+
+ENTRY_RE  = re.compile(r'(?im)^\s*(?:#{1,3}\s*)?number\s+(\d+|%s)\s*[:,.\-–—]?\s*(.+?)\s*$' % _NUM_WORDS)
+
 YEAR_RE   = re.compile(r'\b(19[5-9]\d|20[0-3]\d)\b')
 QUOTED_RE = re.compile(r'[“"]([^“”"\n]{3,60})[”"]')
 
@@ -118,7 +130,14 @@ def google_cse_urls(query, n):
 
 
 def _download(url, dst):
-    urllib.request.urlretrieve(url, dst)
+        # urlretrieve sends Python-urllib's default UA -> Wikimedia 403s it.
+      # The Commons API search above works because it sends a descriptive UA,
+    # so downloads must do the same.
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "VideoFactoryBot/1.0"})
+    with urllib.request.urlopen(req, timeout=40) as r, \
+            open(dst, "wb") as f:
+        f.write(r.read())
     return str(dst)
 
 
