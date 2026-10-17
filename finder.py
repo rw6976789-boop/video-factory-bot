@@ -17,17 +17,7 @@ import re
 import subprocess
 import urllib.parse
 import urllib.request
-
-
-
-
-
-
-
-
-_NUM_WORDS = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty")
 from pathlib import Path
-
 
 import config as C
 
@@ -36,10 +26,11 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s")
 
 # ---------------- heuristic fallback (no key / brain outage) ----------------
-
-
+_NUM_WORDS = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+              "thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|"
+              "twenty")
 ENTRY_RE  = re.compile(r'(?im)^\s*(?:#{1,3}\s*)?number\s+(\d+|%s)\s*[:,.\-–—]?\s*(.+?)\s*$' % _NUM_WORDS)
-
+SENT_RE   = re.compile(r'(?<=[.!?])["”\']?\s+(?=[A-Z0-9"“])')
 YEAR_RE   = re.compile(r'\b(19[5-9]\d|20[0-3]\d)\b')
 QUOTED_RE = re.compile(r'[“"]([^“”"\n]{3,60})[”"]')
 
@@ -55,7 +46,11 @@ def heuristic_plan(script_text):
         end = ms[i + 1].start() if i + 1 < len(ms) else len(script_text)
         body = script_text[m.end():end]
         raw = m.group(2).strip()
-        person = re.split(r'\s[—–\-:;]\s|,\s', raw, maxsplit=1)[0].strip() or raw
+        # Entry headers in real scripts are single-line:
+        # "Number fifteen, Tom Hanks. He played the most decent man..."
+        # so the name ends at the first period (or comma/dash).
+        person = re.split(r'\s[—–\-:;]\s|,\s', raw, maxsplit=1)[0]
+        person = person.split('.')[0].strip() or raw.split('.')[0].strip()
         years = YEAR_RE.findall(body)
         show = ""
         for q in QUOTED_RE.findall(body):
@@ -130,8 +125,8 @@ def google_cse_urls(query, n):
 
 
 def _download(url, dst):
-        # urlretrieve sends Python-urllib's default UA -> Wikimedia 403s it.
-      # The Commons API search above works because it sends a descriptive UA,
+    # urlretrieve sends Python-urllib's default UA -> Wikimedia 403s it.
+    # The Commons API search above works because it sends a descriptive UA,
     # so downloads must do the same.
     req = urllib.request.Request(
         url, headers={"User-Agent": "VideoFactoryBot/1.0"})
@@ -148,11 +143,24 @@ def find_photos(item, outdir, n=C.PHOTOS_PER_PERSON):
     outdir.mkdir(parents=True, exist_ok=True)
     tag = slug(item["person"])
     kw = item["google_search_keyword"]
-    try:
-        cands = commons_search(kw, n * 3, outdir, tag)
-    except Exception as e:  # noqa: BLE001
-        log.warning("commons failed for '%s': %s", kw, e)
-        cands = []
+    # Commons search is picky: "Tom Hanks Bosom Buddies TV still" returns
+    # nothing while "Tom Hanks" returns plenty. Broaden until we get hits.
+    queries = [kw]
+    if item["show"]:
+        queries.append(f"{item['person']} {item['show']}".strip())
+    queries.append(item["person"])
+    cands = []
+    for q in queries:
+        try:
+            cands = commons_search(q, n * 3, outdir, tag)
+        except Exception as e:  # noqa: BLE001
+            log.warning("commons failed for '%s': %s", q, e)
+            cands = []
+        if cands:
+            if q != kw:
+                log.info("commons fallback query '%s' -> %d candidates",
+                         q, len(cands))
+            break
     if len(cands) < n:
         try:
             cands += google_cse_urls(kw, n * 3 - len(cands))
