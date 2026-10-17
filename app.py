@@ -49,7 +49,14 @@ with st.sidebar:
     else:
         st.info("No Gemini key — heuristic mode (photos still screened out "
                 "only if key present).")
-    st.caption("build v5 · brain+photo fixes")
+    fast_mode = st.checkbox(
+        "Fast mode (skip Gemini, use heuristic parsing)", value=False,
+        help="Use this when Gemini is slow or rate-limited. Photos still "
+             "download; only the AI parsing and photo screening are skipped.")
+    if fast_mode:
+        C.GEMINI_API_KEY = ""
+        st.info("Fast mode on — heuristic parsing, no Gemini calls.")
+    st.caption("build v6 · brain+photo fixes + fast mode")
 
 # ---------------- inputs ----------------
 st.subheader("1. Script")
