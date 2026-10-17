@@ -49,6 +49,7 @@ with st.sidebar:
     else:
         st.info("No Gemini key — heuristic mode (photos still screened out "
                 "only if key present).")
+    st.caption("build v5 · brain+photo fixes")
 
 # ---------------- inputs ----------------
 st.subheader("1. Script")
