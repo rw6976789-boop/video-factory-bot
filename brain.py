@@ -29,17 +29,17 @@ for _k in ("no_proxy", "NO_PROXY"):
     if _v and "[" in _v:
         os.environ[_k] = ",".join(p for p in _v.split(",") if "[" not in p)
 
-_client = None
+_client_instance = None
 
 
 def _client():
-    global _client
-    if _client is None:
+    global _client_instance
+    if _client_instance is None:
         if not C.GEMINI_API_KEY:
             raise RuntimeError("GEMINI_API_KEY env var is missing.")
         from google import genai
-        _client = genai.Client(api_key=C.GEMINI_API_KEY)
-    return _client
+        _client_instance = genai.Client(api_key=C.GEMINI_API_KEY)
+    return _client_instance
 
 
 def _call(prompt, image_path=None, retries=2):
@@ -81,7 +81,7 @@ SCRIPT:
 
 def parse_script(script_text):
     raw = _call(PARSE_PROMPT + (script_text or "")[:15000])
-    m = re.search(r'\[.*\]', raw, re.S)
+    m = re.search(r'\\[.*\\]', raw, re.S)
     if not m:
         raise RuntimeError("Gemini did not return a JSON list.")
     items = json.loads(m.group(0))
