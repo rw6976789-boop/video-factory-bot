@@ -1,0 +1,23 @@
+services:
+  - type: worker
+    name: video-factory-bot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    disk:
+      name: videodata
+      mountPath: /data
+      sizeGB: 20
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DATA_DIR
+        value: /data
+      # optional:
+      # - key: GOOGLE_API_KEY
+      #   sync: false
+      # - key: GOOGLE_CX
+      #   sync: false
+      # - key: GDRIVE_SA_JSON
+      #   value: /data/sa.json
+      # - key: GDRIVE_FOLDER_ID
+      #   sync: false
